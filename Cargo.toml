@@ -1,0 +1,12 @@
+[package]
+name = "sdl2-project"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+dotenv = "0.15.0"
+sdl2="0.36.0"
+raylib = { version = "3.7" }
+serde_json = {version="1.0.99"}
+serde = {version="1.0.99", features=["derive"]}
+lazy_static = "1.4.0"

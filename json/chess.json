@@ -1,0 +1,74 @@
+[
+  {
+    "name": "King",
+    "variant": "king",
+    "team": "white",
+    "src": "icons/Chess_klt45.png"
+  },
+  {
+    "name": "Queen",
+    "variant": "queen",
+    "team": "white",
+    "src": "icons/Chess_qlt45.png"
+  },
+  {
+    "name": "Rook",
+    "variant": "rook",
+    "team": "white",
+    "src": "icons/Chess_rlt45.png"
+  },
+  {
+    "name": "Bishop",
+    "variant": "bishop",
+    "team": "white",
+    "src": "icons/Chess_blt45.png"
+  },
+  {
+    "name": "Knight",
+    "variant": "knight",
+    "team": "white",
+    "src": "icons/Chess_nlt45.png"
+  },
+  {
+    "name": "Pawn",
+    "variant": "pawn",
+    "team": "white",
+    "src": "icons/Chess_plt45.png"
+  },
+  {
+    "name": "King",
+    "variant": "king",
+    "team": "black",
+    "src": "icons/Chess_kdt45.png"
+  },
+  {
+    "name": "Queen",
+    "variant": "queen",
+    "team": "black",
+    "src": "icons/Chess_qdt45.png"
+  },
+  {
+    "name": "Rook",
+    "variant": "rook",
+    "team": "black",
+    "src": "icons/Chess_rdt45.png"
+  },
+  {
+    "name": "Bishop",
+    "variant": "bishop",
+    "team": "black",
+    "src": "icons/Chess_bdt45.png"
+  },
+  {
+    "name": "Knight",
+    "variant": "knight",
+    "team": "black",
+    "src": "icons/Chess_ndt45.png"
+  },
+  {
+    "name": "Pawn",
+    "variant": "pawn",
+    "team": "black",
+    "src": "icons/Chess_pdt45.png"
+  }
+]

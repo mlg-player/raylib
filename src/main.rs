@@ -26,10 +26,10 @@ pub struct ChessColor;
 impl ChessColor {
     pub const WHITE: Color = Color::new(255, 206, 158, 255);
     pub const BLACK: Color = Color::new(209, 139, 71, 255);
-    pub const WHITE_HOVER: Color = Color::new(255, 206, 158, 255);
-    pub const BLACK_HOVER: Color = Color::new(209, 139, 71, 255);
-    pub const WHITE_SELECTED: Color = Color::new(255, 206, 158, 255);
-    pub const BLACK_SELECTED: Color = Color::new(209, 139, 71, 255);
+
+    // Define colors for selected squares
+    pub const SELECTED: Color = Color::new(180, 180, 0, 255); // Darker yellow color for selected white square
+    pub const HOVERED: Color = Color::new(180, 180, 180, 255); // Light grey color for hovered white square
 }
 
 #[derive(Deserialize, Debug)]
@@ -50,7 +50,7 @@ pub struct ChessBoardItem {
     pub x: i32,
     pub y: i32,
 
-    pub is_selected: bool,
+    pub state: String,
 }
 
 pub struct ChessRenderData {
@@ -89,7 +89,25 @@ fn render_chess_item(item: &ChessBoardItem, draw: &mut RaylibDrawHandle) {
     let x = item.x * SQUARE_SIZE;
     let y = item.y * SQUARE_SIZE;
 
-    draw.draw_texture(&texture, x, y, Color::WHITE);
+    let is_white_field = (item.x + item.y) % 2 == 0;
+
+    if item.state == "rest" {
+        let rest_color = if is_white_field {
+            ChessColor::WHITE
+        } else {
+            ChessColor::BLACK
+        };
+        draw.draw_rectangle(x, y, SQUARE_SIZE, SQUARE_SIZE, rest_color);
+    } else if item.state == "selected" {
+        let selected_color = ChessColor::SELECTED;
+
+        draw.draw_rectangle(x, y, SQUARE_SIZE, SQUARE_SIZE, selected_color.clone());
+    } else if item.state == "hover" {
+        let hover_color = ChessColor::HOVERED;
+
+        draw.draw_rectangle(x, y, SQUARE_SIZE, SQUARE_SIZE, hover_color);
+    }
+    draw.draw_texture(texture, x, y, Color::WHITE);
 }
 
 fn init_chess_items(chess_items: Vec<ChessItem>, thread: &RaylibThread, rl: &mut RaylibHandle) {
@@ -118,7 +136,7 @@ fn init_chess_items(chess_items: Vec<ChessItem>, thread: &RaylibThread, rl: &mut
                         src: item.src.clone(),
                         x: field,
                         y,
-                        is_selected: false,
+                        state: "rest".to_string(),
                     },
                 );
                 x += 1;
@@ -136,7 +154,7 @@ fn init_chess_items(chess_items: Vec<ChessItem>, thread: &RaylibThread, rl: &mut
                     src: item.src.clone(),
                     x,
                     y,
-                    is_selected: false,
+                    state: "rest".to_string(),
                 },
             );
 
@@ -154,7 +172,7 @@ fn init_chess_items(chess_items: Vec<ChessItem>, thread: &RaylibThread, rl: &mut
                     src: item.src.clone(),
                     x,
                     y,
-                    is_selected: false,
+                    state: "rest".to_string(),
                 },
             );
             x = 6;
@@ -170,7 +188,7 @@ fn init_chess_items(chess_items: Vec<ChessItem>, thread: &RaylibThread, rl: &mut
                     src: item.src.clone(),
                     x,
                     y,
-                    is_selected: false,
+                    state: "rest".to_string(),
                 },
             );
             x = 5;
@@ -193,7 +211,7 @@ fn init_chess_items(chess_items: Vec<ChessItem>, thread: &RaylibThread, rl: &mut
                 src: item.src.clone(),
                 x,
                 y,
-                is_selected: false,
+                state: "rest".to_string(),
             },
         );
 
@@ -205,7 +223,7 @@ fn init_chess_items(chess_items: Vec<ChessItem>, thread: &RaylibThread, rl: &mut
                 src: item.src.clone(),
                 x,
                 y,
-                is_selected: false,
+                state: "rest".to_string(),
             },
             thread,
             rl,
@@ -219,7 +237,7 @@ fn add_to_chess_map(chess_items: ChessBoardItem, thread: &RaylibThread, rl: &mut
 
     if !textures_loaded {
         let texture = rl.load_texture(&thread, &chess_items.src).unwrap();
-        
+
         CHESS_TEXTURES_MAP.lock().unwrap().insert(
             name.clone(),
             ChessRenderData {
@@ -229,7 +247,7 @@ fn add_to_chess_map(chess_items: ChessBoardItem, thread: &RaylibThread, rl: &mut
             },
         );
     }
-        
+
     CHESS_MAP.lock().unwrap().insert(name, chess_items);
 }
 fn main() {
@@ -246,46 +264,85 @@ fn main() {
     let mut chess_items_rendered = false;
     let mut x;
     let mut y;
-    
+
+    let mut selected = "".to_string();
+    let mut position = "".to_string();
     print!("UPDATE\n");
-    
+
     while !rl.window_should_close() {
         if chess_initialized && chess_items_rendered {
+            let mut chess_map = CHESS_MAP.lock().unwrap();
+            if chess_map.contains_key(&position) {
+                let item = chess_map.get_mut(&position).unwrap();
+                item.state = "rest".to_string();
+            }
             x = rl.get_mouse_x() / SQUARE_SIZE;
             y = rl.get_mouse_y() / SQUARE_SIZE;
 
-            let position = y.to_string() + &'-'.to_string() + &x.to_string();
+            if chess_map.contains_key(&position) {
+                rl.set_mouse_cursor(MouseCursor::MOUSE_CURSOR_POINTING_HAND);
+                let item = chess_map.get_mut(&position).unwrap();
+                item.state = "rest".to_string();
+            } else {
+                rl.set_mouse_cursor(MouseCursor::MOUSE_CURSOR_ARROW);
+            }
 
-            if rl.is_mouse_button_down(MouseButton::MOUSE_LEFT_BUTTON) {
-                let mut chess_map = CHESS_MAP.lock().unwrap();
+            position = y.to_string() + &'-'.to_string() + &x.to_string();
 
-                let item = chess_map.get_mut(&position);
+            let item = chess_map.get_mut(&position);
 
-                match item {
-                    Some(item) => {
-                        item.is_selected = true;
-                    }
-                    None => {
-                        println!("No item found at position: {}", position);
+            match item {
+                Some(item) => {
+                    if item.state == "rest" {
+                        item.state = "hover".to_string();
+                        selected = position.clone();
                     }
                 }
+                None => {}
+            }
+
+            if rl.is_mouse_button_down(MouseButton::MOUSE_LEFT_BUTTON) {
+                update_chess_square(chess_map, &mut selected, &position, "selected".to_string());
             }
         }
 
         let mut d: RaylibDrawHandle<'_> = rl.begin_drawing(&thread);
 
-        // if !chess_initialized {
         init_chess_board(&mut d);
-        chess_initialized = true;
-        // }
+        if !chess_initialized {
+            chess_initialized = true;
+        }
 
-        // if !chess_items_rendered {
         CHESS_MAP.lock().unwrap().iter().for_each(|(_, value)| {
             render_chess_item(value, &mut d); // Pass a mutable reference to ChessBoardItem
         });
-        chess_items_rendered = true;
-        // }
+        if !chess_items_rendered {
+            chess_items_rendered = true;
+        }
 
         d.clear_background(Color::WHITE);
+    }
+}
+
+fn update_chess_square(
+    mut chess_map: std::sync::MutexGuard<'_, HashMap<String, ChessBoardItem>>,
+    previous: &mut String,
+    position: &String,
+    state: String,
+) {
+    if chess_map.contains_key(&*previous) {
+        let item = chess_map.get_mut(&*previous).unwrap();
+        item.state = "rest".to_string();
+    }
+
+    let item = chess_map.get_mut(position);
+    match item {
+        Some(item) => {
+            if item.state == "rest" {
+                item.state = state;
+                *previous = position.clone();
+            }
+        }
+        None => {}
     }
 }

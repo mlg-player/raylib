@@ -82,9 +82,10 @@ fn init_chess_board(draw: &mut RaylibDrawHandle) {
 }
 
 fn render_chess_item(item: &ChessBoardItem, draw: &mut RaylibDrawHandle) {
-    let name = item.team.clone() + &item.variant.clone();
+    let texture_id = item.variant.clone() + &"-".to_string() + &item.team.clone();
+
     let binding = CHESS_TEXTURES_MAP.lock().unwrap();
-    let texture = &binding.get(&name).unwrap().texture;
+    let texture = &binding.get(&texture_id).unwrap().texture;
 
     let x = item.x * SQUARE_SIZE;
     let y = item.y * SQUARE_SIZE;
@@ -126,120 +127,99 @@ fn init_chess_items(chess_items: Vec<ChessItem>, thread: &RaylibThread, rl: &mut
                 y = 6;
             }
             for field in 0..8 {
-                let name = y.to_string() + &'-'.to_string() + &x.to_string();
-                CHESS_MAP.lock().unwrap().insert(
-                    name,
-                    ChessBoardItem {
-                        name: item.name.clone(),
-                        team: item.team.clone(),
-                        variant: item.variant.clone(),
-                        src: item.src.clone(),
-                        x: field,
-                        y,
-                        state: "rest".to_string(),
-                    },
-                );
+                let name = y.to_string() + &'-'.to_string() + &field.to_string();
+                update_chess_map(name, item, field, y, thread, rl);
                 x += 1;
             }
         } else if item.variant == "rook" {
             x = 0;
 
             let name = y.to_string() + &'-'.to_string() + &x.to_string();
-            CHESS_MAP.lock().unwrap().insert(
-                name,
-                ChessBoardItem {
-                    name: item.name.clone(),
-                    team: item.team.clone(),
-                    variant: item.variant.clone(),
-                    src: item.src.clone(),
-                    x,
-                    y,
-                    state: "rest".to_string(),
-                },
-            );
+            update_chess_map(name, item, x, y, thread, rl);
 
             x = 7;
+            let name = y.to_string() + &'-'.to_string() + &x.to_string();
+            update_chess_map(name, item, x, y, thread, rl);
         } else if item.variant == "knight" {
             x = 1;
 
             let name = y.to_string() + &'-'.to_string() + &x.to_string();
-            CHESS_MAP.lock().unwrap().insert(
-                name,
-                ChessBoardItem {
-                    name: item.name.clone(),
-                    team: item.team.clone(),
-                    variant: item.variant.clone(),
-                    src: item.src.clone(),
-                    x,
-                    y,
-                    state: "rest".to_string(),
-                },
-            );
+            update_chess_map(name, item, x, y, thread, rl);
             x = 6;
+            let name = y.to_string() + &'-'.to_string() + &x.to_string();
+            update_chess_map(name, item, x, y, thread, rl);
         } else if item.variant == "bishop" {
             x = 2;
             let name = y.to_string() + &'-'.to_string() + &x.to_string();
-            CHESS_MAP.lock().unwrap().insert(
-                name,
-                ChessBoardItem {
-                    name: item.name.clone(),
-                    team: item.team.clone(),
-                    variant: item.variant.clone(),
-                    src: item.src.clone(),
-                    x,
-                    y,
-                    state: "rest".to_string(),
-                },
-            );
+            update_chess_map(name, item, x, y, thread, rl);
             x = 5;
+            let name = y.to_string() + &'-'.to_string() + &x.to_string();
+            update_chess_map(name, item, x, y, thread, rl);
         } else if item.variant == "queen" {
             x = 3;
+            let name = y.to_string() + &'-'.to_string() + &x.to_string();
+            update_chess_map(name, item, x, y, thread, rl);
         } else if item.variant == "king" {
             x = 4;
+            let name = y.to_string() + &'-'.to_string() + &x.to_string();
+            update_chess_map(name, item, x, y, thread, rl);
         } else {
             print!("Invalid type!\n");
             print!("Type: {}\n", item.variant);
         }
-
-        let name = y.to_string() + &'-'.to_string() + &x.to_string();
-        CHESS_MAP.lock().unwrap().insert(
-            name,
-            ChessBoardItem {
-                name: item.name.clone(),
-                team: item.team.clone(),
-                variant: item.variant.clone(),
-                src: item.src.clone(),
-                x,
-                y,
-                state: "rest".to_string(),
-            },
-        );
-
-        add_to_chess_map(
-            ChessBoardItem {
-                name: item.name.clone(),
-                team: item.team.clone(),
-                variant: item.variant.clone(),
-                src: item.src.clone(),
-                x,
-                y,
-                state: "rest".to_string(),
-            },
-            thread,
-            rl,
-        );
     }
 }
 
+fn update_chess_map(
+    name: String,
+    item: &ChessItem,
+    x: i32,
+    y: i32,
+    thread: &RaylibThread,
+    rl: &mut RaylibHandle,
+) {
+    CHESS_MAP.lock().unwrap().insert(
+        name,
+        ChessBoardItem {
+            name: item.name.clone(),
+            team: item.team.clone(),
+            variant: item.variant.clone(),
+            src: item.src.clone(),
+            x,
+            y,
+            state: "rest".to_string(),
+        },
+    );
+
+    add_to_chess_map(
+        ChessBoardItem {
+            name: item.name.clone(),
+            team: item.team.clone(),
+            variant: item.variant.clone(),
+            src: item.src.clone(),
+            x,
+            y,
+            state: "rest".to_string(),
+        },
+        thread,
+        rl,
+    );
+}
+
 fn add_to_chess_map(chess_items: ChessBoardItem, thread: &RaylibThread, rl: &mut RaylibHandle) {
-    let name = chess_items.team.clone() + &chess_items.variant.clone();
-    let textures_loaded = CHESS_TEXTURES_MAP.lock().unwrap().contains_key(&name);
+    let name =
+        chess_items.y.clone().to_string() + &"-".to_string() + &chess_items.x.clone().to_string();
+
+    let texture_id = chess_items.variant.clone() + &"-".to_string() + &chess_items.team.clone();
+
+    let textures_loaded = CHESS_TEXTURES_MAP.lock().unwrap().contains_key(&texture_id);
+    let included = CHESS_MAP.lock().unwrap().contains_key(&name);
 
     if !textures_loaded {
         let texture = rl.load_texture(&thread, &chess_items.src).unwrap();
 
         CHESS_TEXTURES_MAP.lock().unwrap().insert(
-            name.clone(),
+            texture_id,
             ChessRenderData {
                 team: chess_items.team.clone(),
                 variant: chess_items.variant.clone(),
@@ -248,6 +228,9 @@ fn add_to_chess_map(chess_items: ChessBoardItem, thread: &RaylibThread, rl: &mut
         );
     }
 
+    if included {
+        return;
+    }
     CHESS_MAP.lock().unwrap().insert(name, chess_items);
 }
 fn main() {
@@ -265,7 +248,7 @@ fn main() {
     let mut x;
     let mut y;
 
-    let mut selected = "".to_string();
+    let mut selected = "selected".to_string();
     let mut position = "".to_string();
     print!("UPDATE\n");
 
@@ -295,19 +278,22 @@ fn main() {
                 Some(item) => {
                     if item.state == "rest" {
                         item.state = "hover".to_string();
-                        selected = position.clone();
                     }
                 }
                 None => {}
             }
 
-            if rl.is_mouse_button_down(MouseButton::MOUSE_LEFT_BUTTON) {
-                update_chess_square(chess_map, &mut selected, &position, "selected".to_string());
+            if rl.is_mouse_button_pressed(MouseButton::MOUSE_LEFT_BUTTON) {
+                let new_selected = on_mouse_down(chess_map, selected.clone(), position.clone());
+                print!("Selected: {}\n", new_selected);
+                print!("Prev selected: {}\n", selected);
+                selected = new_selected;
+                position = "".to_string();
             }
         }
 
         let mut d: RaylibDrawHandle<'_> = rl.begin_drawing(&thread);
-
+        d.clear_background(Color::WHITE);
         init_chess_board(&mut d);
         if !chess_initialized {
             chess_initialized = true;
@@ -324,25 +310,54 @@ fn main() {
     }
 }
 
-fn update_chess_square(
+fn on_mouse_down<'a>(
     mut chess_map: std::sync::MutexGuard<'_, HashMap<String, ChessBoardItem>>,
-    previous: &mut String,
-    position: &String,
-    state: String,
-) {
-    if chess_map.contains_key(&*previous) {
-        let item = chess_map.get_mut(&*previous).unwrap();
-        item.state = "rest".to_string();
+    prev_position: String,
+    curr_position: String,
+) -> String {
+    // Если предыдущая позиция равна текущей, то ничего не делаем
+    if prev_position == curr_position {
+        return prev_position;
     }
+    // Если предыдущая позиция не равна текущей, то обновляем позицию фигуры
 
-    let item = chess_map.get_mut(position);
-    match item {
-        Some(item) => {
-            if item.state == "rest" {
-                item.state = state;
-                *previous = position.clone();
+    // Удаляем предыдущую позицию
+    let previous_item = chess_map.remove(&prev_position);
+    if previous_item.is_none() {
+        // Если предыдущая позиция не существует, то делаем curr_position как Selected
+        match chess_map.get_mut(&curr_position) {
+            Some(item) => {
+                item.state = "selected".to_string();
+                return curr_position;
             }
-        }
-        None => {}
+            None => {
+                return "empty".to_string();
+            }
+        };
     }
+    // Если предыдущая позиция существует, то обновляем ее координаты
+    // и перемещяем ее на новую позицию
+    // и обновляем позицию на rest
+    // если в новой позиции уже есть фигура, то удаляем её
+    let mut previous_item = previous_item.unwrap();
+    let current_hovered_item = chess_map.get_mut(&curr_position);
+    
+    match current_hovered_item {
+        Some(hovered_item) => {
+
+            
+            print!("PREV CONDITION: {}\n", curr_position);
+
+        }
+        None => {
+            print!("LAS CONDITION: {}\n", curr_position);
+        }
+    }
+    previous_item.x = curr_position.split("-").collect::<Vec<&str>>()[1].parse().unwrap();
+    previous_item.y = curr_position.split("-").collect::<Vec<&str>>()[0].parse().unwrap();
+    previous_item.state = "rest".to_string();
+    chess_map.insert(curr_position.clone(), previous_item);
+
+    return "empty".to_string();
+
 }

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{borrow::Borrow, collections::HashMap};
 
 use crate::ChessBoardItem;
 
@@ -9,6 +9,7 @@ pub fn on_mouse_down<'a>(
 ) -> String {
     // Если предыдущая позиция равна текущей, то ничего не делаем
     if prev_position == curr_position {
+        print!("PREV CONDITION: {}\n", curr_position);
         return prev_position;
     }
     // Если предыдущая позиция не равна текущей, то обновляем позицию фигуры
@@ -42,14 +43,124 @@ pub fn on_mouse_down<'a>(
             // print!("LAS CONDITION: {}\n", curr_position);
         }
     }
-    previous_item.x = curr_position.split("-").collect::<Vec<&str>>()[1]
-        .parse()
-        .unwrap();
-    previous_item.y = curr_position.split("-").collect::<Vec<&str>>()[0]
-        .parse()
-        .unwrap();
-    previous_item.state = "rest".to_string();
-    chess_map.insert(curr_position.clone(), previous_item);
 
-    return "empty".to_string();
+    let [y, x]: [i32; 2] = curr_position
+        .split("-")
+        .map(|x| x.parse().unwrap())
+        .collect::<Vec<i32>>()
+        .as_slice()
+        .try_into()
+        .unwrap();
+
+    if previous_item.x == x && previous_item.y == y {
+        previous_item.state = "rest".to_string();
+        chess_map.insert(curr_position.clone(), previous_item);
+        return curr_position;
+    }
+
+    let clone = previous_item.borrow();
+
+    let can_move = check_if_can_move(
+        &clone.variant,
+        &clone.team,
+        clone.moved,
+        clone.x,
+        clone.y,
+        x,
+        y,
+    );
+
+    match can_move {
+        true => {
+            previous_item.x = x;
+            previous_item.y = y;
+            previous_item.moved = true;
+            previous_item.state = "rest".to_string();
+            chess_map.insert(
+                previous_item.y.to_string() + "-" + &previous_item.x.to_string(),
+                previous_item,
+            );
+        }
+        false => {
+            previous_item.state = "rest".to_string();
+            chess_map.insert(prev_position.clone(), previous_item);
+            return curr_position;
+        }
+    }
+
+    "empty".to_string()
+}
+
+fn check_if_can_move(
+    pice_type: &String,
+    team: &String,
+    moved: bool,
+    curr_x: i32,
+    curr_y: i32,
+    new_x: i32,
+    new_y: i32,
+) -> bool {
+    match pice_type.as_str() {
+        "pawn" => {
+            if team.as_str() == "white" {
+                if curr_x == new_x && (curr_y + 1 == new_y) {
+                    return true;
+                }
+                if curr_x == new_x && (curr_y + 2 == new_y) && !moved {
+                    return true;
+                }
+            } else {
+                if curr_x == new_x && (curr_y - 1 == new_y) {
+                    return true;
+                }
+                if curr_x == new_x && (curr_y - 2 == new_y) && !moved {
+                    return true;
+                }
+            }
+
+            false
+        }
+        "rook" => {
+            if curr_x == new_x || curr_y == new_y {
+                return true;
+            }
+            false
+        }
+        "knight" => {
+            if (curr_x - 2 == new_x && curr_y - 1 == new_y)
+                || (curr_x - 2 == new_x && curr_y + 1 == new_y)
+                || (curr_x + 2 == new_x && curr_y - 1 == new_y)
+                || (curr_x + 2 == new_x && curr_y + 1 == new_y)
+                || (curr_x - 1 == new_x && curr_y - 2 == new_y)
+                || (curr_x - 1 == new_x && curr_y + 2 == new_y)
+                || (curr_x + 1 == new_x && curr_y - 2 == new_y)
+                || (curr_x + 1 == new_x && curr_y + 2 == new_y)
+            {
+                return true;
+            }
+            false
+        }
+        "bishop" => {
+            if (curr_x - new_x).abs() == (curr_y - new_y).abs() {
+                return true;
+            }
+            false
+        }
+        "queen" => {
+            if (curr_x - new_x).abs() == (curr_y - new_y).abs() {
+                return true;
+            }
+            if curr_x == new_x || curr_y == new_y {
+                return true;
+            }
+            false
+        }
+        "king" => {
+            if (curr_x - new_x).abs() <= 1 && (curr_y - new_y).abs() <= 1 {
+                return true;
+            }
+            false
+        }
+        _ => false,
+    }
 }

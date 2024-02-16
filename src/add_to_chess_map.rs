@@ -1,4 +1,4 @@
-use raylib::{RaylibHandle, RaylibThread};
+use raylib::prelude::*;
 
 use crate::{ChessBoardItem, ChessRenderData, CHESS_MAP, CHESS_TEXTURES_MAP};
 

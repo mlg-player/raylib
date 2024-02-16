@@ -27,9 +27,10 @@ lazy_static! {
 }
 
 const BOARD_SIZE: i32 = 8;
-const SQUARE_SIZE: i32 = 50;
-const WINDOW_WIDTH: i32 = BOARD_SIZE * SQUARE_SIZE;
-const WINDOW_HEIGHT: i32 = BOARD_SIZE * SQUARE_SIZE;
+struct RectangleSize {
+    width: i32,
+    height: i32,
+}
 
 pub struct ChessColor;
 
@@ -61,6 +62,7 @@ pub struct ChessBoardItem {
     pub y: i32,
 
     pub state: String,
+    pub moved: bool,
 }
 
 pub struct ChessRenderData {
@@ -76,29 +78,29 @@ fn load_json() -> Vec<ChessItem> {
     return data;
 }
 
-fn init_chess_board(draw: &mut RaylibDrawHandle) {
+fn init_chess_board(draw: &mut RaylibDrawHandle, pice_size: RectangleSize, window_offset: RectangleSize) {
     for i in 0..BOARD_SIZE {
         for j in 0..BOARD_SIZE {
-            let x = i * SQUARE_SIZE;
-            let y = j * SQUARE_SIZE;
+            let x = (i * pice_size.width) + window_offset.width;
+            let y = (j * pice_size.height) + window_offset.height;
             let color = if (i + j) % 2 == 0 {
                 ChessColor::WHITE
             } else {
                 ChessColor::BLACK
             };
-            draw.draw_rectangle(x, y, SQUARE_SIZE, SQUARE_SIZE, color);
+            draw.draw_rectangle(x, y, pice_size.width, pice_size.height, color);
         }
     }
 }
 
-fn render_chess_item(item: &ChessBoardItem, draw: &mut RaylibDrawHandle) {
+fn render_chess_item(item: &ChessBoardItem, draw: &mut RaylibDrawHandle, pice_size: RectangleSize, window_offset: RectangleSize) {
     let texture_id = item.variant.clone() + &"-".to_string() + &item.team.clone();
 
     let binding = CHESS_TEXTURES_MAP.lock().unwrap();
     let texture = &binding.get(&texture_id).unwrap().texture;
 
-    let x = item.x * SQUARE_SIZE;
-    let y = item.y * SQUARE_SIZE;
+    let x = item.x * pice_size.width + window_offset.width;
+    let y = item.y * pice_size.height + window_offset.height;
 
     let is_white_field = (item.x + item.y) % 2 == 0;
 
@@ -108,22 +110,42 @@ fn render_chess_item(item: &ChessBoardItem, draw: &mut RaylibDrawHandle) {
         } else {
             ChessColor::BLACK
         };
-        draw.draw_rectangle(x, y, SQUARE_SIZE, SQUARE_SIZE, rest_color);
+        draw.draw_rectangle(x, y, pice_size.width, pice_size.height, rest_color);
     } else if item.state == "selected" {
-        let selected_color = ChessColor::SELECTED;
-
-        draw.draw_rectangle(x, y, SQUARE_SIZE, SQUARE_SIZE, selected_color.clone());
+        draw.draw_rectangle(
+            x,
+            y,
+            pice_size.width,
+            pice_size.height,
+            ChessColor::SELECTED,
+        );
     } else if item.state == "hover" {
         let hover_color = ChessColor::HOVERED;
 
-        draw.draw_rectangle(x, y, SQUARE_SIZE, SQUARE_SIZE, hover_color);
+        draw.draw_rectangle(x, y, pice_size.width, pice_size.height, hover_color);
     }
-    draw.draw_texture(texture, x, y, Color::WHITE);
+    draw.draw_texture_pro(texture, Rectangle {
+        x: 0.0,
+        y: 0.0,
+        width: texture.width as f32,
+        height: texture.height as f32,
+    }, Rectangle {
+        x: x as f32,
+        y: y as f32,
+        width: pice_size.width as f32,
+        height: pice_size.height as f32,
+    }, Vector2 { x: 0.0, y: 0.0 }, 0.0, Color::WHITE);
 }
 
 fn main() {
+    let mut window_size: RectangleSize = RectangleSize {
+        width: BOARD_SIZE * 50,
+        height: BOARD_SIZE * 50,
+    };
+
     let (mut rl, thread) = raylib::init()
-        .size(WINDOW_WIDTH, WINDOW_HEIGHT)
+        .size(window_size.width, window_size.height)
+        .resizable()
         .title("Hello, World")
         .build();
 
@@ -131,29 +153,67 @@ fn main() {
 
     init_chess_items(chess_items, &thread, &mut rl);
 
+    let mut pice_size;
+
     let mut chess_initialized = false;
     let mut chess_items_rendered = false;
-    let mut x;
-    let mut y;
+    let mut x: i32;
+    let mut y: i32;
 
-    let mut selected = "selected".to_string();
-    let mut position = "".to_string();
-    print!("UPDATE\n");
+    let mut offset_left: i32;
+    let mut offset_top: i32;
+
+    let mut selected = "selected_item".to_string();
+    let mut position = "current_pos".to_string();
 
     while !rl.window_should_close() {
+        let win_width = rl.get_screen_width();
+        let win_height = rl.get_screen_height();
+
+        let _size = i32::min(win_width, win_height);
+        let max_size = i32::max(win_width, win_height);
+        window_size = RectangleSize {
+            width: _size,
+            height: _size,
+        };
+
+        let new_size = RectangleSize {
+            width: (window_size.width as f32 / BOARD_SIZE as f32).round() as i32,
+            height: (window_size.height as f32 / BOARD_SIZE as f32).round() as i32,
+        };
+
+        if max_size != win_height {
+            offset_left = (max_size - (new_size.width * BOARD_SIZE)) / 2;
+        } else {
+            offset_left = 0;
+        }
+
+        if max_size != win_width {
+            offset_top = (max_size - (new_size.height * BOARD_SIZE)) / 2;
+        } else {
+            offset_top = 0;
+        }
+
+        pice_size = new_size;
+
         if chess_initialized && chess_items_rendered {
             let mut chess_map = CHESS_MAP.lock().unwrap();
             if chess_map.contains_key(&position) {
                 let item = chess_map.get_mut(&position).unwrap();
-                item.state = "rest".to_string();
+
+                if item.state == "hover" {
+                    item.state = "rest".to_string();
+                }
             }
-            x = rl.get_mouse_x() / SQUARE_SIZE;
-            y = rl.get_mouse_y() / SQUARE_SIZE;
+            x = (rl.get_mouse_x() - offset_left) / pice_size.width;
+            y = (rl.get_mouse_y() - offset_top) / pice_size.height;
 
             if chess_map.contains_key(&position) {
                 rl.set_mouse_cursor(MouseCursor::MOUSE_CURSOR_POINTING_HAND);
-                let item = chess_map.get_mut(&position).unwrap();
-                item.state = "rest".to_string();
+                let item: &mut ChessBoardItem = chess_map.get_mut(&position).unwrap();
+                if item.state == "hover" {
+                    item.state = "rest".to_string();
+                }
             } else {
                 rl.set_mouse_cursor(MouseCursor::MOUSE_CURSOR_ARROW);
             }
@@ -172,24 +232,45 @@ fn main() {
             }
 
             if rl.is_mouse_button_pressed(MouseButton::MOUSE_LEFT_BUTTON) {
-                let new_selected = on_mouse_down(chess_map, selected.clone(), position.clone());
-                print!("Selected: {}\n", new_selected);
-                print!("Prev selected: {}\n", selected);
-                selected = new_selected;
-                position = "".to_string();
+                selected = on_mouse_down(chess_map, selected.clone(), position.clone());
+                position = "empty".to_string();
             }
         }
 
         let mut d: RaylibDrawHandle<'_> = rl.begin_drawing(&thread);
         d.clear_background(Color::WHITE);
-        init_chess_board(&mut d);
+
+        init_chess_board(
+            &mut d,
+            RectangleSize {
+                width: pice_size.width,
+                height: pice_size.height,
+            },
+            RectangleSize {
+                width: offset_left,
+                height: offset_top,
+            },
+        );
+
         if !chess_initialized {
             chess_initialized = true;
         }
 
         CHESS_MAP.lock().unwrap().iter().for_each(|(_, value)| {
-            render_chess_item(value, &mut d); // Pass a mutable reference to ChessBoardItem
+            render_chess_item(
+                value,
+                &mut d,
+                RectangleSize {
+                    width: pice_size.width,
+                    height: pice_size.height,
+                },
+                RectangleSize {
+                    width: offset_left,
+                    height: offset_top,
+                },
+            );
         });
+
         if !chess_items_rendered {
             chess_items_rendered = true;
         }

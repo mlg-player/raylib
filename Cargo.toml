@@ -10,3 +10,4 @@ raylib = { version = "3.7" }
 serde_json = {version="1.0.99"}
 serde = {version="1.0.99", features=["derive"]}
 lazy_static = "1.4.0"
+usvg = "0.39.0"

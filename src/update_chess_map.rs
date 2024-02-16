@@ -20,6 +20,7 @@ pub fn update_chess_map(
             x,
             y,
             state: "rest".to_string(),
+            moved: false,
         },
     );
 
@@ -32,6 +33,7 @@ pub fn update_chess_map(
             x,
             y,
             state: "rest".to_string(),
+            moved: false,
         },
         thread,
         rl,
